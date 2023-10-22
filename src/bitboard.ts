@@ -1,4 +1,4 @@
-import { Knight, King, Bishop, Rook, Queen, SQ_H8, SQ_A1, SQUARE_DISTANCE, sq_safe_destination, Rank1, Rank8, FileA, FileH, new_square } from './types'
+import { Knight, King, Bishop, Rook, Queen, SQ_H8, SQ_A1, SQUARE_DISTANCE, sq_safe_destination, Rank1, Rank8, FileA, FileH, new_square, SQUARE_NB, PIECE_TYPE_NB, COLOR_NB } from './types'
 import { Color, White, Black, PieceType } from './types'
 import { D_North, D_East, D_NorthEast, D_NorthWest, D_South, D_SouthEast, D_SouthWest, D_West } from './types'
 import { Direction, sq_file, sq_rank, Square, Rank, File } from './types'
@@ -6,34 +6,46 @@ import { Direction, sq_file, sq_rank, Square, Rank, File } from './types'
 export type Bitboard = bigint
 
 export const EMPTYBB: Bitboard = BigInt(0)
+export const MASK_64: Bitboard = BigInt('0xffffffffffffffff')
 
 export const FileABB: Bitboard = BigInt('0x0101010101010101')
-export const FileBBB: Bitboard = FileABB << BigInt(1)
-export const FileCBB: Bitboard = FileABB << BigInt(2)
-export const FileDBB: Bitboard = FileABB << BigInt(3)
-export const FileEBB: Bitboard = FileABB << BigInt(4)
-export const FileFBB: Bitboard = FileABB << BigInt(5)
-export const FileGBB: Bitboard = FileABB << BigInt(6)
-export const FileHBB: Bitboard = FileABB << BigInt(7)
+export const FileBBB: Bitboard = FileABB << BigInt(1) & MASK_64
+export const FileCBB: Bitboard = FileABB << BigInt(2) & MASK_64
+export const FileDBB: Bitboard = FileABB << BigInt(3) & MASK_64
+export const FileEBB: Bitboard = FileABB << BigInt(4) & MASK_64
+export const FileFBB: Bitboard = FileABB << BigInt(5) & MASK_64
+export const FileGBB: Bitboard = FileABB << BigInt(6) & MASK_64
+export const FileHBB: Bitboard = FileABB << BigInt(7) & MASK_64
 
 
 export const Rank1BB: Bitboard = BigInt('0xff')
-export const Rank2BB: Bitboard = Rank1BB << (BigInt('8') * BigInt('1'))
-export const Rank3BB: Bitboard = Rank1BB << (BigInt('8') * BigInt('2'))
-export const Rank4BB: Bitboard = Rank1BB << (BigInt('8') * BigInt('3'))
-export const Rank5BB: Bitboard = Rank1BB << (BigInt('8') * BigInt('4'))
-export const Rank6BB: Bitboard = Rank1BB << (BigInt('8') * BigInt('5'))
-export const Rank7BB: Bitboard = Rank1BB << (BigInt('8') * BigInt('6'))
-export const Rank8BB: Bitboard = Rank1BB << (BigInt('8') * BigInt('7'))
+export const Rank2BB: Bitboard = Rank1BB << (BigInt('8') * BigInt('1')) & MASK_64
+export const Rank3BB: Bitboard = Rank1BB << (BigInt('8') * BigInt('2')) & MASK_64
+export const Rank4BB: Bitboard = Rank1BB << (BigInt('8') * BigInt('3')) & MASK_64
+export const Rank5BB: Bitboard = Rank1BB << (BigInt('8') * BigInt('4')) & MASK_64
+export const Rank6BB: Bitboard = Rank1BB << (BigInt('8') * BigInt('5')) & MASK_64
+export const Rank7BB: Bitboard = Rank1BB << (BigInt('8') * BigInt('6')) & MASK_64
+export const Rank8BB: Bitboard = Rank1BB << (BigInt('8') * BigInt('7')) & MASK_64
 
 
 export const PopCnt16: number[] = []
 
-export const BetweenBB: Bitboard[][] = []
-export const LineBB: Bitboard[][] = []
-export const PseudoAttacks: Bitboard[][] = []
-export const PawnAttacks: Bitboard[][] = []
+export const BetweenBB: Bitboard[][] = bb_zeros(SQUARE_NB, SQUARE_NB)
+export const LineBB: Bitboard[][] = bb_zeros(SQUARE_NB, SQUARE_NB)
+export const PseudoAttacks: Bitboard[][] = bb_zeros(PIECE_TYPE_NB, SQUARE_NB)
+export const PawnAttacks: Bitboard[][] = bb_zeros(COLOR_NB, SQUARE_NB)
 
+function bb_zeros(a: number, b: number) {
+  let res: Bitboard[][] = []
+
+  for (let i = 0; i < a; i++) {
+    res[i] = []
+    for (let j = 0; j < b; j++) {
+      res[i][j] = EMPTYBB
+    }
+  }
+  return res
+}
 
 export function pretty_bb(b: Bitboard): string {
 
@@ -60,7 +72,7 @@ type Magic = {
 }
 
 function magic_index(m: Magic, occupied: Bitboard): BigInt {
-  return ((occupied & m.mask) * m.magic) >> BigInt(m.shift)
+  return ((occupied & m.mask) * m.magic) >> BigInt(m.shift) & MASK_64
 }
 
 function magic_attacks(m: Magic, occupied: Bitboard): Bitboard {
@@ -71,7 +83,7 @@ export const RookMagics: Magic[] = []
 export const BishopMagics: Magic[] = []
 
 export function square_bb(s: Square): Bitboard {
-  return BigInt(1) << BigInt(s)
+  return BigInt(1) << BigInt(s) & MASK_64
 }
 
 
@@ -96,11 +108,11 @@ export function sq_file_bb(sq: Square): Bitboard {
 }
 
 export function shift(d: Direction, b: Bitboard): Bitboard {
-  return d === D_North ? b << BigInt(8) : d === D_South  ? b >> BigInt(8)
-  : d === D_North + D_North ? b << BigInt(16) : d === D_South + D_South ? b >> BigInt(16)
-  : d === D_East      ? (b & ~FileHBB) << BigInt(1) : d === D_West      ? (b & ~FileABB) >> BigInt(1)
-  : d === D_NorthEast ? (b & ~FileHBB) << BigInt(9) : d === D_NorthWest ? (b & ~FileABB) >> BigInt(7)
-  : d === D_SouthEast ? (b & ~FileHBB) << BigInt(7) : d === D_SouthWest ? (b & ~FileABB) >> BigInt(9)
+  return d === D_North ? b << BigInt(8) : d === D_South  ? b >> BigInt(8) & MASK_64 
+  : d === D_North + D_North ? b << BigInt(16) & MASK_64 : d === D_South + D_South ? b >> BigInt(16) & MASK_64
+  : d === D_East      ? (b & ~FileHBB) << BigInt(1) & MASK_64 : d === D_West      ? (b & ~FileABB) >> BigInt(1) & MASK_64
+  : d === D_NorthEast ? (b & ~FileHBB) << BigInt(9) & MASK_64 : d === D_NorthWest ? (b & ~FileABB) >> BigInt(7) & MASK_64
+  : d === D_SouthEast ? (b & ~FileHBB) << BigInt(7) & MASK_64 : d === D_SouthWest ? (b & ~FileABB) >> BigInt(9) & MASK_64
   : BigInt(0)
 }
 
@@ -133,7 +145,7 @@ export function attacks_bb(Pt: PieceType, s: Square, occupied: Bitboard): Bitboa
   switch (Pt) {
     case Bishop: return magic_attacks(BishopMagics[s], occupied)
     case Rook: return magic_attacks(RookMagics[s], occupied)
-    case Bishop: return attacks_bb(Bishop, s, occupied) | attacks_bb(Rook, s, occupied)
+    case Queen: return attacks_bb(Bishop, s, occupied) | attacks_bb(Rook, s, occupied)
     default: return PseudoAttacks[Pt][s]
   }
 }
@@ -157,7 +169,7 @@ export function pop_lsb(b: Bitboard): [Bitboard, Square] {
 
 
 
-function bb_init() {
+export function bb_init() {
   for (let i = 0; i < (1 << 16); i++) {
     PopCnt16[i] = countSetBits(i)
   }
@@ -173,14 +185,14 @@ function bb_init() {
 
     for (let step of [-9, -8, -7, -1, 1, 7, 8, 9]) {
       let d = sq_safe_destination(s1, step)
-      if (d) {
+      if (d !== undefined) {
         PseudoAttacks[King][s1] |= square_bb(d)
       }
     }
 
     for (let step of [-17, -15, -10, -6, 6, 10, 15, 17]) {
       let d = sq_safe_destination(s1, step)
-      if (d) {
+      if (d !== undefined) {
         PseudoAttacks[Knight][s1] |= square_bb(d)
       }
     }
@@ -193,7 +205,7 @@ function bb_init() {
         if ((PseudoAttacks[pt][s1] & square_bb(s2)) !== EMPTYBB) {
 
           LineBB[s1][s2] = (attacks_bb(pt, s1, BigInt(0)) & attacks_bb(pt, s2, BigInt(0))) | square_bb(s1) | square_bb(s2)
-          BetweenBB[s1][s2] = (attacks_bb(pt, s1, square_bb(s2) & attacks_bb(pt, s2, square_bb(s1))))
+          BetweenBB[s1][s2] = (attacks_bb(pt, s1, square_bb(s2)) & attacks_bb(pt, s2, square_bb(s1)))
         }
 
         BetweenBB[s1][s2] |= square_bb(s2)
@@ -257,7 +269,7 @@ function init_magics(pt: PieceType, magics: Magic[]) {
 
       let magic
       for (let i = 0; i < size;) {
-        for (magic = BigInt(0); popcount((magic * mask) >> BigInt(56)) < 6;) {
+        for (magic = BigInt(0); popcount((magic * mask) >> BigInt(56) & MASK_64) < 6;) {
           magic = rng.sparse_rand()
         }
 
@@ -271,9 +283,10 @@ function init_magics(pt: PieceType, magics: Magic[]) {
         }
 
 
+        magics[s] = m
 
         cnt++;
-        for (let i = 0; i < size; i++) {
+        for (i = 0; i < size; i++) {
           let idx = magic_index(m, occupancy[i])
 
           if (epoch.get(idx) < cnt) {
@@ -301,7 +314,7 @@ function findLeastSignificantSetBitPosition(n: bigint) {
   let position = 0;
   
   while ((n & BigInt(1)) === BigInt(0)) {
-    n >>= BigInt(1);
+    n = n >> BigInt(1) & MASK_64;
     position++;
   }
   
@@ -338,12 +351,16 @@ class BigIntArray<T> {
 
   set(index: BigInt, value: T) {
     const [high32, low32] = splitBigInt(index as bigint);
+    if (this.array[low32] === undefined) {
+      this.array[low32] = []
+    }
     this.array[low32][high32] = value;
   }
 
   get(index: BigInt) {
     const [high32, low32] = splitBigInt(index as bigint);
-    return this.array[low32][high32]
+
+    return this.array[low32]?.[high32] ?? BigInt(0)
   }
 }
 
@@ -359,7 +376,7 @@ class PRNG {
 
   rand64() {
      this.s ^= this.s >> BigInt(12);
-     this.s ^= this.s << BigInt(25);
+     this.s ^= this.s << BigInt(25) & MASK_64;
      this.s ^= this.s >> BigInt(27);
      return this.s * BigInt('2685821657736338717')
   }

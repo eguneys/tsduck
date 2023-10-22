@@ -9,6 +9,7 @@ export const CASTLE_King: CastlingRights = CASTLE_WOo | CASTLE_BOo
 export const CASTLE_Queen: CastlingRights = CASTLE_WOoo | CASTLE_BOoo
 export const CASTLE_White: CastlingRights = CASTLE_WOo | CASTLE_WOoo
 export const CASTLE_Black: CastlingRights = CASTLE_BOo | CASTLE_BOoo
+export const CASTLE_Any: CastlingRights = CASTLE_White | CASTLE_Black
 
 
 
@@ -73,8 +74,8 @@ export const RanksLH_Fen = '12345678'.split('')
 export const RanksHL_Fen = RanksLH_Fen.reverse()
 
 
-export const relative_rank = (rank: Rank, c: Color) => {
-  rank ^ (c * 7)
+export const relative_rank = (rank: Rank, c: Color): Rank => {
+  return rank ^ (c * 7)
 }
 
 
@@ -210,6 +211,7 @@ SS_A1_H8.map(s1 => SS_A1_H8.map(s2 =>
   Math.max(sq_distance_file(s1, s2), sq_distance_rank(s1, s2))
 ))
 
+export const color_castling_rights = (c: Color) => c === White ? CASTLE_White : CASTLE_Black
 
 export const color_flip = (c: Color) => c === White ? Black : White
 
@@ -344,7 +346,7 @@ export function new_move_enpassant(orig: Square, dest: Square): Move {
 }
 
 export function new_square(f: File, r: Rank): Square {
-  return r << 3 + f
+  return (r << 3) + f
 }
 
 export function sq_flip_rank(sq: Square): Square {
@@ -378,13 +380,13 @@ export function sq_distance(sq: Square, y: Square): number {
 }
 
 export function is_square(i: number): i is Square {
-  return i >= 0 && i <= 64
+  return i >= 0 && i <= 63
 }
 
 export function sq_safe_destination(sq: Square, step: number): Square | undefined {
   let to = sq + step
   if (is_square(to) && sq_distance(sq, to) <= 2) {
-    return sq
+    return to
   }
 }
 
@@ -393,7 +395,7 @@ export function sq_uci(sq: Square): string {
 }
 
 
-export function sq_relative_square(s: Square, c: Color): Square {
+export function sq_relative_square(c: Color, s: Square): Square {
   return s ^ (c * 56)
 }
 
@@ -547,3 +549,18 @@ export function debug_square(sq: Square): string {
     default: throw 'None square'
   }
 }
+
+export function debug_file(f: File): string {
+  switch (f) {
+    case FileA: return 'a'
+    case FileB: return 'b'
+    case FileC: return 'c'
+    case FileD: return 'd'
+    case FileE: return 'e'
+    case FileF: return 'f'
+    case FileG: return 'g'
+    case FileH: return 'h'
+    default: throw "bad file"
+  }
+}
+
