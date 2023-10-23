@@ -1,5 +1,5 @@
 import { assert } from "vitest"
-import { Bitboard, EMPTYBB, aligned, attacks_bb, between_bb, lsb, more_than_one, pawn_attacks_bb, pop_lsb, pseudo_attacks_bb, sq_pawn_attacks_bb, square_bb } from "./bitboard"
+import { Bitboard, EMPTYBB, MASK_64, aligned, attacks_bb, between_bb, lsb, more_than_one, pawn_attacks_bb, pop_lsb, pseudo_attacks_bb, sq_pawn_attacks_bb, square_bb } from "./bitboard"
 import { Bishop, Black, CASTLE_Any, CASTLE_BOo, CASTLE_BOoo, CASTLE_King, CASTLE_None, CASTLE_Queen, CASTLE_WOo, CASTLE_WOoo, CASTLING_RIGHTS_NB, COLOR_NB, CastlingRights, Color, D_East, D_South, D_West, FILES_LH, FileA, FileB, FileC, FileD, FileE, FileF, FileG, FileH, King, Knight, Move, MoveType, NoPiece, PIECE_NB, PIECE_TYPE_NB, Pawn, Piece, PieceType, Queen, RANKS_HL, Rank1, Rank6, Rank8, Rook, SQ_A1, SQ_A8, SQ_C1, SQ_D1, SQ_F1, SQ_G1, SQ_None, Square, White, color_castling_rights, color_flip, color_pawn_push, debug_file, debug_piece, debug_square, from_str_square, is_square, new_piece_ct, new_square, piece_color, piece_type, relative_rank, sq_file, sq_rank, sq_relative_square } from "./types"
 
 export const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
