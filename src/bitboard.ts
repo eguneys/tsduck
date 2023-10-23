@@ -2,6 +2,7 @@ import { Knight, King, Bishop, Rook, Queen, SQ_H8, SQ_A1, SQUARE_DISTANCE, sq_sa
 import { Color, White, Black, PieceType } from './types'
 import { D_North, D_East, D_NorthEast, D_NorthWest, D_South, D_SouthEast, D_SouthWest, D_West } from './types'
 import { Direction, sq_file, sq_rank, Square, Rank, File } from './types'
+import { assert } from './util'
 
 export type Bitboard = bigint
 
@@ -163,6 +164,7 @@ export function popcount(b: Bitboard): number {
 
 
 export function lsb(b: Bitboard): Square {
+  assert(b !== EMPTYBB)
   return findLeastSignificantSetBitPosition(b)
 }
 

@@ -163,7 +163,16 @@ it('ten thousand', () => {
 
 })
 
-it('random.perft', () => {
+
+it.skip('chess960.perft', () => {
+
+  let random = perft_read("chess960.perft")
+  calculate_perfts(random, 100000)
+
+})
+
+
+it.skip('random.perft', () => {
 
   let random = perft_read("random.perft")
   calculate_perfts(random, 10000)

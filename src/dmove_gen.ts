@@ -1,25 +1,111 @@
 import { assert } from './util'
 import { Bitboard, EMPTYBB, Rank2BB, Rank3BB, Rank6BB, Rank7BB, attacks_bb, between_bb, file_bb, lsb, more_than_one, pawn_attacks_bb, pop_lsb, pretty_bb, pseudo_attacks_bb, shift, sq_pawn_attacks_bb, square_bb } from "./bitboard";
-import { Position } from "./position";
-import { Bishop, CASTLE_Any, CASTLE_King, CASTLE_Queen, Color, D_NorthEast, D_NorthWest, D_SouthEast, D_SouthWest, Direction, King, Knight, Move, MoveType, Pawn, PieceType, Queen, Rank6, Rook, SQ_None, Square, White, color_castling_rights, color_flip, color_pawn_push, new_move_castling, new_move_enpassant, new_move_normal, new_move_promotion, relative_rank, sq_file, sq_rank } from "./types";
+import { Bishop, CASTLE_Any, CASTLE_King, CASTLE_Queen, Color, D_NorthEast, D_NorthWest, D_SouthEast, D_SouthWest, Direction, King, Knight, MoveType, Pawn, PieceType, Queen, Rank6, Rook, SQ_None, Square, White, color_castling_rights, color_flip, color_pawn_push, debug_piece_type, debug_square, new_move_castling, new_move_enpassant, new_move_normal, new_move_promotion, relative_rank, sq_file, sq_rank } from "./types";
+import { GenType } from './move_gen';
+import { DPosition } from './dposition';
 
-export enum GenType {
-  Captures,
-  Quiets,
-  QuietChecks,
-  Evasions,
-  NonEvasions,
-  Legal
+export type DMove = {
+  orig: Square,
+  dest: Square,
+  promotion: PieceType,
+  special: MoveType,
+  duck: Square
 }
 
 
-type MoveList = [GenType, Move[]]
+export function new_dmove_normal(orig: Square, dest: Square, empties: Bitboard): DMove[] {
 
-export function ml_moves(ml: MoveList): Move[] {
+  let res: DMove[] = []
+
+  empties = empties ^ square_bb(orig) | square_bb(dest)
+  while (empties !== EMPTYBB) {
+    let duck
+    [empties, duck] = pop_lsb(empties)
+
+    res.push({
+      orig,
+      dest,
+      promotion: Bishop,
+      special: MoveType.Normal,
+      duck
+    })
+  }
+  return res
+}
+
+
+export function new_dmove_promotion(orig: Square, dest: Square, promotion: PieceType, empties: Bitboard): DMove[] {
+
+  let res: DMove[] = []
+
+  empties = empties ^ square_bb(orig) | square_bb(dest)
+  while (empties !== EMPTYBB) {
+    let duck
+    [empties, duck] = pop_lsb(empties)
+
+
+    res.push({
+      orig,
+      dest,
+      promotion,
+      special: MoveType.Promotion,
+      duck
+    })
+  }
+  return res
+}
+
+
+export function new_dmove_castling(ksq: Square, cr: Square, empties: Bitboard): DMove[] {
+
+  let res: DMove[] = []
+
+  while (empties !== EMPTYBB) {
+    let duck
+    [empties, duck] = pop_lsb(empties)
+
+
+    res.push({
+      orig: ksq,
+      dest: cr,
+      promotion: Knight,
+      special: MoveType.Castling,
+      duck
+    })
+  }
+  return res
+
+}
+
+export function new_dmove_enpassant(orig: Square, dest: Square, empties: Bitboard): DMove[] {
+
+  let res: DMove[] = []
+
+  empties = empties ^ square_bb(orig) | square_bb(dest)
+  while (empties !== EMPTYBB) {
+    let duck
+    [empties, duck] = pop_lsb(empties)
+
+
+    res.push({
+      orig,
+      dest,
+      promotion: Knight,
+      special: MoveType.EnPassant,
+      duck
+    })
+  }
+  return res
+}
+
+
+type DMoveList = [GenType, DMove[]]
+
+export function dml_moves(ml: DMoveList): DMove[] {
   return ml[1]
 }
 
-export function new_move_list(g: GenType, pos: Position): MoveList {
+export function new_dmove_list(g: GenType, pos: DPosition): DMoveList {
 
   switch (g) {
     case GenType.Legal: {
@@ -28,8 +114,8 @@ export function new_move_list(g: GenType, pos: Position): MoveList {
       let pinned = pos.blockers_for_king(us) & pos.pieces_by_c(us)
       let ksq = pos.square(King, us)
 
-      let ms = pos.checkers() !== EMPTYBB ? new_move_list(GenType.Evasions, pos)
-      : new_move_list(GenType.NonEvasions, pos)
+      let ms = pos.checkers() !== EMPTYBB ? new_dmove_list(GenType.Evasions, pos)
+      : new_dmove_list(GenType.NonEvasions, pos)
 
 
       let res = ms[1].filter(cur => 
@@ -40,18 +126,18 @@ export function new_move_list(g: GenType, pos: Position): MoveList {
 
         return [GenType.Legal, res]
     } break;
-    default: return new_move_list_by_color(pos.side_to_move, g, pos)
+    default: return new_dmove_list_by_color(pos.side_to_move, g, pos)
   }
 }
 
-export function new_move_list_by_color(us: Color, g: GenType, pos: Position): MoveList {
+export function new_dmove_list_by_color(us: Color, g: GenType, pos: DPosition): DMoveList {
   assert(g !== GenType.Legal)
 
   let checks = g === GenType.QuietChecks
   let ksq = pos.square(King, us)
   let target = EMPTYBB
 
-  let res = []
+  let res: DMove[] = []
 
   if (g !== GenType.Evasions || !more_than_one(pos.checkers())) {
     switch (g) {
@@ -69,11 +155,11 @@ export function new_move_list_by_color(us: Color, g: GenType, pos: Position): Mo
       }
     }
 
-    res.push(...ml_generate_pawn_moves(us, g, pos, target))
-    res.push(...ml_generate_moves(us, Knight, checks, g, pos, target))
-    res.push(...ml_generate_moves(us, Bishop, checks, g, pos, target))
-    res.push(...ml_generate_moves(us, Rook, checks, g, pos, target))
-    res.push(...ml_generate_moves(us, Queen, checks, g, pos, target))
+    res.push(...dml_generate_pawn_moves(us, g, pos, target))
+    res.push(...dml_generate_moves(us, Knight, checks, g, pos, target))
+    res.push(...dml_generate_moves(us, Bishop, checks, g, pos, target))
+    res.push(...dml_generate_moves(us, Rook, checks, g, pos, target))
+    res.push(...dml_generate_moves(us, Queen, checks, g, pos, target))
   }
 
   if (!checks || (pos.blockers_for_king(color_flip(us) & ksq) !== EMPTYBB)) {
@@ -88,14 +174,14 @@ export function new_move_list_by_color(us: Color, g: GenType, pos: Position): Mo
     while (b !== EMPTYBB) {
       let pop
       [b, pop] = pop_lsb(b)
-      res.push(new_move_normal(ksq, pop))
+      res.push(...new_dmove_normal(ksq, pop, ~pos.all_pieces()))
     }
 
 
     if ((g === GenType.Quiets || g === GenType.NonEvasions) && pos.can_castle(color_castling_rights(us) & CASTLE_Any)) {
       for (let cr of [color_castling_rights(us) & CASTLE_King, color_castling_rights(us) & CASTLE_Queen]) {
         if (!pos.castling_impedded(cr) && pos.can_castle(cr)) {
-          res.push(new_move_castling(ksq, pos.castling_rook_square[cr]))
+          res.push(...new_dmove_castling(ksq, pos.castling_rook_square[cr], ~pos.all_pieces()))
         }
       }
     }
@@ -104,8 +190,8 @@ export function new_move_list_by_color(us: Color, g: GenType, pos: Position): Mo
   return [g, res]
 }
 
-function ml_generate_pawn_moves(us: Color, g: GenType, pos: Position, target: Bitboard): Move[] {
-  let res: Move[] = []
+function dml_generate_pawn_moves(us: Color, g: GenType, pos: DPosition, target: Bitboard): DMove[] {
+  let res: DMove[] = []
 
   let them = color_flip(us)
   let t_rank7_bb = us === White ? Rank7BB : Rank2BB
@@ -141,14 +227,14 @@ function ml_generate_pawn_moves(us: Color, g: GenType, pos: Position, target: Bi
       let to
       [b1, to] = pop_lsb(b1)
       let from = to - up
-      res.push(new_move_normal(from, to))
+      res.push(...new_dmove_normal(from, to, ~pos.all_pieces()))
     }
 
     while (b2 !== EMPTYBB) {
       let to
       [b2, to] = pop_lsb(b2)
       let from = to - up - up
-      res.push(new_move_normal(from, to))
+      res.push(...new_dmove_normal(from, to, ~pos.all_pieces()))
     }
   }
 
@@ -167,19 +253,19 @@ function ml_generate_pawn_moves(us: Color, g: GenType, pos: Position, target: Bi
     while (b1 !== EMPTYBB) {
       let pop
       [b1, pop] = pop_lsb(b1)
-      res.push(...ml_make_promotions(g, up_right, true, pop))
+      res.push(...dml_make_promotions(g, up_right, true, pop, pos))
     }
 
     while (b2 !== EMPTYBB) {
       let pop
       [b2, pop] = pop_lsb(b2)
-      res.push(...ml_make_promotions(g, up_left, true, pop))
+      res.push(...dml_make_promotions(g, up_left, true, pop, pos))
     }
 
     while (b3 !== EMPTYBB) {
       let pop
       [b3, pop] = pop_lsb(b3)
-      res.push(...ml_make_promotions(g, up, false, pop))
+      res.push(...dml_make_promotions(g, up, false, pop, pos))
     }
   }
 
@@ -191,14 +277,14 @@ function ml_generate_pawn_moves(us: Color, g: GenType, pos: Position, target: Bi
       let to
       [b1, to] = pop_lsb(b1)
       let from = to - up_right
-      res.push(new_move_normal(from, to))
+      res.push(...new_dmove_normal(from, to, ~pos.all_pieces()))
     }
 
     while (b2 !== EMPTYBB) {
       let to
       [b2, to] = pop_lsb(b2)
       let from = to - up_left
-      res.push(new_move_normal(from, to))
+      res.push(...new_dmove_normal(from, to, ~pos.all_pieces()))
     }
 
     if (pos.ep_square() !== SQ_None) {
@@ -218,7 +304,7 @@ function ml_generate_pawn_moves(us: Color, g: GenType, pos: Position, target: Bi
       while (b1 !== EMPTYBB) {
         let pop
         [b1, pop] = pop_lsb(b1)
-        res.push(new_move_enpassant(pop, pos.ep_square()))
+        res.push(...new_dmove_enpassant(pop, pos.ep_square(), ~pos.all_pieces()))
       }
     }
 
@@ -229,8 +315,8 @@ function ml_generate_pawn_moves(us: Color, g: GenType, pos: Position, target: Bi
 
 }
 
-function ml_generate_moves(us: Color, pt: PieceType, checks: boolean, g: GenType, pos: Position, target: Bitboard):  Move[] {
-  let res: Move[] = []
+function dml_generate_moves(us: Color, pt: PieceType, checks: boolean, g: GenType, pos: DPosition, target: Bitboard):  DMove[] {
+  let res: DMove[] = []
 
   assert(pt !== King && pt !== Pawn)
 
@@ -249,34 +335,49 @@ function ml_generate_moves(us: Color, pt: PieceType, checks: boolean, g: GenType
     while (b !== EMPTYBB) {
       let pop
       [b, pop] = pop_lsb(b)
-      res.push(new_move_normal(from, pop))
+      res.push(...new_dmove_normal(from, pop, ~pos.all_pieces()))
     }
   }
 
   return res
 }
 
-function ml_make_promotions(g: GenType, d: Direction, enemy: boolean, to: Square): Move[] {
-  let res: Move[] = []
+function dml_make_promotions(g: GenType, d: Direction, enemy: boolean, to: Square, pos: DPosition): DMove[] {
+  let res: DMove[] = []
 
   let from = to - d
 
   if (g === GenType.Captures || g === GenType.Evasions || g ===  GenType.NonEvasions) {
-    res.push(new_move_promotion(from, to, Queen))
+    res.push(...new_dmove_promotion(from, to, Queen, ~pos.all_pieces()))
 
     if (enemy && g === GenType.Captures) {
-      res.push(new_move_promotion(from, to, Rook))
-      res.push(new_move_promotion(from, to, Bishop))
-      res.push(new_move_promotion(from, to, Knight))
+      res.push(...new_dmove_promotion(from, to, Rook, ~pos.all_pieces()))
+      res.push(...new_dmove_promotion(from, to, Bishop, ~pos.all_pieces()))
+      res.push(...new_dmove_promotion(from, to, Knight, ~pos.all_pieces()))
     }
   }
 
   if ((g === GenType.Quiets && !enemy) || g === GenType.Evasions || g === GenType.NonEvasions) {
-      res.push(new_move_promotion(from, to, Rook))
-      res.push(new_move_promotion(from, to, Bishop))
-      res.push(new_move_promotion(from, to, Knight))
+      res.push(...new_dmove_promotion(from, to, Rook, ~pos.all_pieces()))
+      res.push(...new_dmove_promotion(from, to, Bishop, ~pos.all_pieces()))
+      res.push(...new_dmove_promotion(from, to, Knight, ~pos.all_pieces()))
   }
 
   return res
 }
 
+
+export function debug_dmove(m: DMove): string {
+  let res = ''
+  switch (m.special) {
+    case MoveType.Normal: 
+    res += debug_square(m.orig) + debug_square(m.dest)
+    case MoveType.Promotion: 
+    res += debug_square(m.orig) + debug_square(m.dest) + debug_piece_type(m.promotion)
+    case MoveType.EnPassant: res += debug_square(m.orig) + debug_square(m.dest)
+    case MoveType.Castling: res += debug_square(m.orig) + debug_square(m.dest)
+  }
+
+  res += ',' + debug_square(m.duck)
+  return res
+}
