@@ -5,10 +5,7 @@ import { Move, Square, debug_move, debug_square } from "./types";
 export function pos_play_tuples(pos: Position, ms: [Square, Square][]) {
 
   ms.forEach(m => {
-    if (`${debug_square(m[0])}${debug_square(m[1])}` === 'e1d2') {
-
-      debugger
-    }
+    let xx =`${debug_square(m[0])}${debug_square(m[1])}`
     let move = to_move(pos, `${debug_square(m[0])}${debug_square(m[1])}`)
     if (move !== undefined) {
       pos.do_move(move)

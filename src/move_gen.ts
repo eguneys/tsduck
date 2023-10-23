@@ -184,10 +184,6 @@ function ml_generate_pawn_moves(us: Color, g: GenType, pos: Position, target: Bi
   }
 
   if (g === GenType.Captures || g === GenType.Evasions || g === GenType.NonEvasions) {
-
-    console.log(pretty_bb(pawns_not_on7))
-    console.log('shifted')
-    console.log(pretty_bb(shift(up_left, pawns_not_on7)))
     let b1 = shift(up_right, pawns_not_on7) & enemies
     let b2 = shift(up_left, pawns_not_on7) & enemies
 

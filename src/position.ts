@@ -24,6 +24,20 @@ function si_copy_from(si: StateInfo, st: StateInfo) {
   si.ep_square = st.ep_square
 }
 
+function st_clone(st: StateInfo): StateInfo {
+  let res: StateInfo = {
+    ep_square: st.ep_square,
+    castling_rights: st.castling_rights,
+    rule50: st.rule50,
+    checkers_bb: st.checkers_bb,
+    blockers_for_king: st.blockers_for_king.slice(0),
+    pinners: st.pinners.slice(0),
+    check_squares: st.check_squares.slice(0),
+    captured_piece: st.captured_piece
+  }
+  return res
+}
+
 function si_default(): StateInfo {
   let res: StateInfo = {
     ep_square: SQ_None,
@@ -39,6 +53,7 @@ function si_default(): StateInfo {
 }
 
 export class Position {
+  
   public board!: Piece[]
   public by_type_bb!: Bitboard[]
   public all_type_bb!: Bitboard
@@ -236,7 +251,7 @@ export class Position {
     if (this.st.castling_rights !== CASTLE_None &&
       (this.castling_rights_mask[from] | this.castling_rights_mask[to]) !== BigInt(0)) {
 
-        this.st.castling_rights &= Number(!(this.castling_rights_mask[from] | this.castling_rights_mask[to]))
+        this.st.castling_rights &= Number(~(this.castling_rights_mask[from] | this.castling_rights_mask[to]))
       }
 
 
@@ -327,6 +342,26 @@ export class Position {
     attacks_bb(Rook, s, occupied) & (this.pieces(Rook) | this.pieces(Queen)) |
     attacks_bb(Bishop, s, occupied) & (this.pieces(Bishop) | this.pieces(Queen)) |
     attacks_bb(King, s, EMPTYBB) & this.pieces(King)
+  }
+
+  clone(): Position {
+
+    let res = new Position()
+
+    res.board = this.board.slice(0)
+    res.by_type_bb = this.by_type_bb.slice(0)
+    res.all_type_bb = this.all_type_bb
+    res.by_color_bb = this.by_color_bb.slice(0)
+    res.piece_count = this.piece_count.slice(0)
+    res.all_piece_count = this.all_piece_count
+    res.castling_rights_mask = this.castling_rights_mask.slice(0)
+    res.castling_rook_square = this.castling_rook_square.slice(0)
+    res.castling_path = this.castling_path.slice(0)
+    res.game_ply = this.game_ply
+    res.side_to_move = this.side_to_move
+    res.st = st_clone(this.st)
+
+    return res
   }
 
   static set(fen: string): Position {

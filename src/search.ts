@@ -4,7 +4,14 @@ import { Move } from "./types";
 
 export function divide_perft(pos: Position, depth: number): [Move, number][] {
   return new_move_list(GenType.Legal, pos)[1].map(mv => {
-    let cnt = depth <= 1 ? 1 : perft(pos, depth - 1)
+    let cnt
+    if (depth <= 1) {
+       cnt = 1
+     } else {
+      let p = pos.clone()
+      p.do_move(mv)
+      cnt = perft(p, depth - 1)
+     }
     return [mv, cnt]
   })
 }
