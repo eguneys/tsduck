@@ -1,5 +1,5 @@
 import { assert } from './util'
-import { Bitboard, EMPTYBB, Rank2BB, Rank3BB, Rank6BB, Rank7BB, attacks_bb, between_bb, file_bb, lsb, more_than_one, pawn_attacks_bb, pop_lsb, pretty_bb, pseudo_attacks_bb, shift, sq_pawn_attacks_bb, square_bb } from "./bitboard";
+import { Bitboard, EMPTYBB, MASK_64, Rank2BB, Rank3BB, Rank6BB, Rank7BB, attacks_bb, between_bb, file_bb, lsb, more_than_one, pawn_attacks_bb, pop_lsb, pretty_bb, pseudo_attacks_bb, shift, sq_pawn_attacks_bb, square_bb } from "./bitboard";
 import { Position } from "./position";
 import { Bishop, CASTLE_Any, CASTLE_King, CASTLE_Queen, Color, D_NorthEast, D_NorthWest, D_SouthEast, D_SouthWest, Direction, King, Knight, Move, MoveType, Pawn, PieceType, Queen, Rank6, Rook, SQ_None, Square, White, color_castling_rights, color_flip, color_pawn_push, new_move_castling, new_move_enpassant, new_move_normal, new_move_promotion, relative_rank, sq_file, sq_rank } from "./types";
 
@@ -59,13 +59,13 @@ export function new_move_list_by_color(us: Color, g: GenType, pos: Position): Mo
         target = between_bb(ksq, lsb(pos.checkers()))
       } break;
       case GenType.NonEvasions: {
-        target = ~pos.pieces_by_c(us)
+        target = ~pos.pieces_by_c(us) & MASK_64
       } break;
       case GenType.Captures: {
         target = pos.pieces_by_c(color_flip(us))
       } break;
       default: {
-        ~pos.all_pieces()
+        target = ~pos.all_pieces() & MASK_64
       }
     }
 
@@ -79,10 +79,10 @@ export function new_move_list_by_color(us: Color, g: GenType, pos: Position): Mo
   if (!checks || (pos.blockers_for_king(color_flip(us) & ksq) !== EMPTYBB)) {
 
     let b = pseudo_attacks_bb(King, ksq) & 
-    (g === GenType.Evasions ? ~pos.pieces_by_c(us) : target)
+    (g === GenType.Evasions ? ~pos.pieces_by_c(us) & MASK_64 : target)
 
     if (checks) {
-      b &= ~pseudo_attacks_bb(Queen, pos.square(King, color_flip(us)))
+      b &= ~pseudo_attacks_bb(Queen, pos.square(King, color_flip(us))) & MASK_64
     }
 
     while (b !== EMPTYBB) {
@@ -114,10 +114,10 @@ function ml_generate_pawn_moves(us: Color, g: GenType, pos: Position, target: Bi
   let up_right = us === White ? D_NorthEast : D_SouthWest
   let up_left = us === White ? D_NorthWest : D_SouthEast
 
-  let empty_squares = ~pos.all_pieces()
+  let empty_squares = ~pos.all_pieces() & MASK_64
   let enemies = g === GenType.Evasions ? pos.checkers() : pos.pieces_by_c(them)
   let pawns_on7 = pos.pieces_ct(us, Pawn) & t_rank7_bb
-  let pawns_not_on7 = pos.pieces_ct(us, Pawn) & ~t_rank7_bb
+  let pawns_not_on7 = pos.pieces_ct(us, Pawn) & (~t_rank7_bb & MASK_64)
 
 
   if (g !== GenType.Captures) {
@@ -132,7 +132,7 @@ function ml_generate_pawn_moves(us: Color, g: GenType, pos: Position, target: Bi
 
     if (g === GenType.QuietChecks) {
       let ksq = pos.square(King, them)
-      let dc_candidate_pawns = pos.blockers_for_king(them) & ~file_bb(sq_file(ksq))
+      let dc_candidate_pawns = pos.blockers_for_king(them) & (~file_bb(sq_file(ksq)) & MASK_64)
       b1 &= sq_pawn_attacks_bb(them, ksq) | shift(up, dc_candidate_pawns)
       b2 &= sq_pawn_attacks_bb(them, ksq) | shift(up + up, dc_candidate_pawns)
     }

@@ -251,7 +251,7 @@ export class Position {
     if (this.st.castling_rights !== CASTLE_None &&
       (this.castling_rights_mask[from] | this.castling_rights_mask[to]) !== BigInt(0)) {
 
-        this.st.castling_rights &= Number(~(this.castling_rights_mask[from] | this.castling_rights_mask[to]))
+        this.st.castling_rights &= Number(~(this.castling_rights_mask[from] | this.castling_rights_mask[to]) & MASK_64)
       }
 
 
@@ -486,7 +486,7 @@ export class Position {
     let rto = sq_relative_square(c, (cr & CASTLE_King) !== 0 ? SQ_F1 : SQ_D1)
 
     this.castling_path[cr] = (between_bb(rfrom, rto) | between_bb(kfrom, kto)) &
-    ~(square_bb(kfrom) | square_bb(rfrom))
+    (~(square_bb(kfrom) | square_bb(rfrom)) & MASK_64)
 
 
   }

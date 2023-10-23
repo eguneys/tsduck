@@ -164,7 +164,7 @@ export function popcount(b: Bitboard): number {
 
 
 export function lsb(b: Bitboard): Square {
-  assert(b !== EMPTYBB)
+  assert(b > BigInt(0))
   return findLeastSignificantSetBitPosition(b)
 }
 

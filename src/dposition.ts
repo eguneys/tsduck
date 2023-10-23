@@ -1,7 +1,8 @@
 import { assert } from './util'
-import { Bitboard, EMPTYBB, aligned, attacks_bb, between_bb, lsb, more_than_one, pawn_attacks_bb, pop_lsb, pseudo_attacks_bb, sq_pawn_attacks_bb, square_bb } from "./bitboard"
+import { Bitboard, EMPTYBB, MASK_64, aligned, attacks_bb, between_bb, lsb, more_than_one, pawn_attacks_bb, pop_lsb, pseudo_attacks_bb, sq_pawn_attacks_bb, square_bb } from "./bitboard"
 import { PIECE_TO_CHAR } from "./position"
-import { Bishop, Black, CASTLE_Any, CASTLE_BOo, CASTLE_BOoo, CASTLE_King, CASTLE_None, CASTLE_Queen, CASTLE_WOo, CASTLE_WOoo, CASTLING_RIGHTS_NB, COLOR_NB, CastlingRights, Color, D_East, D_South, D_West, FILES_LH, FileA, FileB, FileC, FileD, FileE, FileF, FileG, FileH, King, Knight, Move, MoveType, NoPiece, PIECE_NB, PIECE_TYPE_NB, Pawn, Piece, PieceType, Queen, RANKS_HL, Rank1, Rank6, Rank8, Rook, SQ_A1, SQ_A8, SQ_C1, SQ_D1, SQ_F1, SQ_G1, SQ_None, Square, White, color_castling_rights, color_flip, color_pawn_push, debug_file, debug_piece, debug_square, from_str_square, is_square, new_piece_ct, new_square, piece_color, piece_type, relative_rank, sq_file, sq_rank, sq_relative_square } from "./types"
+import { Bishop, Black, CASTLE_Any, CASTLE_BOo, CASTLE_BOoo, CASTLE_King, CASTLE_None, CASTLE_Queen, CASTLE_WOo, CASTLE_WOoo, CASTLING_RIGHTS_NB, COLOR_NB, CastlingRights, Color, D_East, D_South, D_West, Duck, FILES_LH, FileA, FileB, FileC, FileD, FileE, FileF, FileG, FileH, King, Knight, MoveType, NoPiece, PIECE_NB, PIECE_TYPE_NB, Pawn, Piece, PieceType, Queen, RANKS_HL, Rank1, Rank6, Rank8, Rook, SQ_A1, SQ_A8, SQ_C1, SQ_D1, SQ_F1, SQ_G1, SQ_None, Square, White, color_castling_rights, color_flip, color_pawn_push, debug_file, debug_piece, debug_square, from_str_square, is_square, new_piece_ct, new_square, piece_color, piece_type, relative_rank, sq_file, sq_rank, sq_relative_square } from "./types"
+import { DMove } from './dmove_gen'
 
 
 
@@ -75,7 +76,7 @@ export class DPosition {
     return this.piece_on(s) === NoPiece
   }
 
-  moved_piece(m: Move): Piece {
+  moved_piece(m: DMove): Piece {
     return this.piece_on(m.orig)
   }
 
@@ -176,7 +177,7 @@ export class DPosition {
     return this.st.check_squares[pt]
   }
 
-  is_capture(m: Move): boolean {
+  is_capture(m: DMove): boolean {
     return (!this.is_empty(m.dest) && m.special !== MoveType.Castling) ||
     m.special == MoveType.EnPassant
   }
@@ -185,12 +186,12 @@ export class DPosition {
     return this.st.captured_piece
   }
 
-  do_move(m: Move) {
+  do_move(m: DMove) {
     this.do_move_c(m, this.gives_check(m))
   }
 
 
-  do_move_c(m: Move, gives_check: boolean) {
+  do_move_c(m: DMove, gives_check: boolean) {
     let new_st = si_default()
     si_copy_from(new_st, this.st)
     this.st = new_st
@@ -250,7 +251,7 @@ export class DPosition {
     if (this.st.castling_rights !== CASTLE_None &&
       (this.castling_rights_mask[from] | this.castling_rights_mask[to]) !== BigInt(0)) {
 
-        this.st.castling_rights &= Number(~(this.castling_rights_mask[from] | this.castling_rights_mask[to]))
+        this.st.castling_rights &= Number(~(this.castling_rights_mask[from] | this.castling_rights_mask[to]) & MASK_64)
       }
 
 
@@ -285,6 +286,7 @@ export class DPosition {
     
       this.set_check_info()
 
+      this.put_piece(Duck, m.duck)
   }
 
   do_castling(us: Color, from: Square, to: Square): [Square, Square, Square] {
@@ -485,7 +487,7 @@ export class DPosition {
     let rto = sq_relative_square(c, (cr & CASTLE_King) !== 0 ? SQ_F1 : SQ_D1)
 
     this.castling_path[cr] = (between_bb(rfrom, rto) | between_bb(kfrom, kto)) &
-    ~(square_bb(kfrom) | square_bb(rfrom))
+    (~(square_bb(kfrom) | square_bb(rfrom)) & MASK_64)
 
 
   }
@@ -578,7 +580,7 @@ export class DPosition {
   }
 
 
-  gives_check(m: Move): boolean {
+  gives_check(m: DMove): boolean {
     assert(piece_color(this.moved_piece(m)) === this.side_to_move)
 
     let from = m.orig
@@ -652,7 +654,7 @@ export class DPosition {
     }
   }
 
-  legal(m: Move): boolean {
+  legal(m: DMove): boolean {
 
     let us = this.side_to_move
     let from = m.orig
