@@ -1,6 +1,6 @@
 import { assert } from "vitest"
 import { Bitboard, EMPTYBB, aligned, attacks_bb, between_bb, lsb, more_than_one, pawn_attacks_bb, pop_lsb, pseudo_attacks_bb, sq_pawn_attacks_bb, square_bb } from "./bitboard"
-import { Bishop, Black, CASTLE_Any, CASTLE_BOo, CASTLE_BOoo, CASTLE_King, CASTLE_None, CASTLE_Queen, CASTLE_WOo, CASTLE_WOoo, CASTLING_RIGHTS_NB, COLOR_NB, CastlingRights, Color, D_East, D_South, FILES_LH, FileA, FileB, FileC, FileD, FileE, FileF, FileG, FileH, King, Knight, Move, MoveType, NoPiece, PIECE_NB, PIECE_TYPE_NB, Pawn, Piece, PieceType, Queen, RANKS_HL, Rank1, Rank6, Rank8, Rook, SQ_A1, SQ_A8, SQ_C1, SQ_D1, SQ_F1, SQ_G1, SQ_None, Square, White, color_castling_rights, color_flip, color_pawn_push, debug_file, debug_piece, debug_square, from_str_square, new_piece_ct, new_square, piece_color, piece_type, relative_rank, sq_file, sq_rank, sq_relative_square } from "./types"
+import { Bishop, Black, CASTLE_Any, CASTLE_BOo, CASTLE_BOoo, CASTLE_King, CASTLE_None, CASTLE_Queen, CASTLE_WOo, CASTLE_WOoo, CASTLING_RIGHTS_NB, COLOR_NB, CastlingRights, Color, D_East, D_South, D_West, FILES_LH, FileA, FileB, FileC, FileD, FileE, FileF, FileG, FileH, King, Knight, Move, MoveType, NoPiece, PIECE_NB, PIECE_TYPE_NB, Pawn, Piece, PieceType, Queen, RANKS_HL, Rank1, Rank6, Rank8, Rook, SQ_A1, SQ_A8, SQ_C1, SQ_D1, SQ_F1, SQ_G1, SQ_None, Square, White, color_castling_rights, color_flip, color_pawn_push, debug_file, debug_piece, debug_square, from_str_square, is_square, new_piece_ct, new_square, piece_color, piece_type, relative_rank, sq_file, sq_rank, sq_relative_square } from "./types"
 
 export const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 export const PIECE_TO_CHAR = " PNBRQK  pnbrqk"
@@ -39,7 +39,6 @@ function si_default(): StateInfo {
 }
 
 export class Position {
-
   public board!: Piece[]
   public by_type_bb!: Bitboard[]
   public all_type_bb!: Bitboard
@@ -146,8 +145,8 @@ export class Position {
     }
   }
 
-  checkers() {
-    this.st.checkers_bb
+  checkers(): Bitboard {
+    return this.st.checkers_bb
   }
 
   blockers_for_king(c: Color): Bitboard {
@@ -618,4 +617,96 @@ export class Position {
       }
     }
   }
+
+  legal(m: Move): boolean {
+
+    let us = this.side_to_move
+    let from = m.orig
+    let to = m.dest
+
+    assert(piece_color(this.moved_piece(m)) === us)
+    assert(this.piece_on(this.square(King, us)) === new_piece_ct(us, King))
+
+
+    if (m.special === MoveType.EnPassant) {
+      let ksq = this.square(King, us)
+      let capsq = to - color_pawn_push(us)
+      let occupied = (this.all_pieces() ^ square_bb(from) ^ square_bb(capsq)) | square_bb(to)
+
+      assert(to === this.ep_square())
+      assert(this.moved_piece(m) === new_piece_ct(us, Pawn))
+      assert(this.piece_on(capsq) === new_piece_ct(color_flip(us), Pawn))
+      assert(this.piece_on(to) === NoPiece)
+
+
+      return (attacks_bb(Rook, ksq, occupied) & (
+        this.pieces_ct(color_flip(us), Queen) | 
+        this.pieces_ct(color_flip(us), Rook))) === EMPTYBB &&
+      (attacks_bb(Bishop, ksq, occupied) & (
+        this.pieces_ct(color_flip(us), Queen) | 
+        this.pieces_ct(color_flip(us), Bishop))) === EMPTYBB
+    }
+
+    if (m.special === MoveType.Castling) {
+
+      to = sq_relative_square(us, to > from ? SQ_G1 : SQ_C1)
+      let step = to > from ? D_West : D_East
+
+      let s = to
+
+      while (true) {
+        if (is_square(s)) {
+          if (s !== from) {
+            if ((this.all_attackers_to(s) & this.pieces_by_c(color_flip(us))) !== EMPTYBB) {
+              return false
+            }
+
+            s = s + step
+            continue
+          } }
+        break
+      }
+
+      return (this.blockers_for_king(us) & square_bb(m.dest)) === EMPTYBB
+    }
+
+    if (piece_type(this.piece_on(from)) === King) {
+      return (this.attackers_to(to, this.all_pieces() ^ square_bb(from))
+      & this.pieces_by_c(color_flip(us))) === EMPTYBB
+    }
+
+    return (this.blockers_for_king(us) & square_bb(from)) === EMPTYBB ||
+    aligned(from, to, this.square(King, us))
+
+  }
+
+
+}
+
+
+
+export function debug_position(pos: Position): string {
+  let res = ''
+
+  for (let r of RANKS_HL) {
+    let ss = ''
+    for (let file of FILES_LH) {
+      if (file === FileA) {
+
+      }
+      let p = pos.piece_on(new_square(file, r))
+      if (p === NoPiece) {
+        ss += ' '
+      } else {
+        res += ss + debug_piece(p)
+        ss = ''
+      }
+    }
+    res += '\n'
+  }
+
+  let color = pos.side_to_move === White ? 'White' : 'Black'
+  res += `${color} to move`
+
+  return res
 }

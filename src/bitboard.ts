@@ -108,11 +108,16 @@ export function sq_file_bb(sq: Square): Bitboard {
 }
 
 export function shift(d: Direction, b: Bitboard): Bitboard {
-  return d === D_North ? b << BigInt(8) : d === D_South  ? b >> BigInt(8) & MASK_64 
-  : d === D_North + D_North ? b << BigInt(16) & MASK_64 : d === D_South + D_South ? b >> BigInt(16) & MASK_64
-  : d === D_East      ? (b & ~FileHBB) << BigInt(1) & MASK_64 : d === D_West      ? (b & ~FileABB) >> BigInt(1) & MASK_64
-  : d === D_NorthEast ? (b & ~FileHBB) << BigInt(9) & MASK_64 : d === D_NorthWest ? (b & ~FileABB) >> BigInt(7) & MASK_64
-  : d === D_SouthEast ? (b & ~FileHBB) << BigInt(7) & MASK_64 : d === D_SouthWest ? (b & ~FileABB) >> BigInt(9) & MASK_64
+  return d === D_North ? b << BigInt(8) & MASK_64
+  : d === D_South  ? b >> BigInt(8) & MASK_64 
+  : d === D_North + D_North ? b << BigInt(16) & MASK_64 
+  : d === D_South + D_South ? b >> BigInt(16) & MASK_64
+  : d === D_East      ? (b & ~FileHBB) << BigInt(1) & MASK_64 
+  : d === D_West      ? (b & ~FileABB) >> BigInt(1) & MASK_64
+  : d === D_NorthEast ? (b & ~FileHBB) << BigInt(9) & MASK_64 
+  : d === D_NorthWest ? (b & ~FileABB) << BigInt(7) & MASK_64
+  : d === D_SouthEast ? (b & ~FileHBB) >> BigInt(7) & MASK_64 
+  : d === D_SouthWest ? (b & ~FileABB) >> BigInt(9) & MASK_64
   : BigInt(0)
 }
 
